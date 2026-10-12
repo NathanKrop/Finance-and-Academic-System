@@ -1,5 +1,7 @@
-// Placeholder / development data only. Real data is entered by the school
-// registrar and finance office after launch — see build notes.
+// Finance values are development samples; student identities come from the
+// supplied Grade 10 registrar rosters.
+
+import { GRADE_10_ROSTER, GRADE_10_STREAMS } from "@/lib/grade-10-roster";
 
 export const SCHOOL = {
   name: "ST. ELIZABETH GIRLS SENIOR SCHOOL",
@@ -14,24 +16,16 @@ export const SCHOOL = {
 };
 
 export const CLASSROOMS = [
-  { id: "f1", name: "Form 1", students: 214, streams: 3 },
-  { id: "f2", name: "Form 2", students: 201, streams: 3 },
-  { id: "f3", name: "Form 3", students: 196, streams: 3 },
-  { id: "f4", name: "Form 4", students: 188, streams: 2 },
+  { id: "g10", name: "Grade 10", students: GRADE_10_ROSTER.length, streams: GRADE_10_STREAMS.length },
 ];
 
-export const STREAMS = [
-  { id: "s1", classroom: "Form 1", name: "East", capacity: 45, enrolled: 43 },
-  { id: "s2", classroom: "Form 1", name: "West", capacity: 45, enrolled: 44 },
-  { id: "s3", classroom: "Form 1", name: "Central", capacity: 45, enrolled: 41 },
-  { id: "s4", classroom: "Form 2", name: "East", capacity: 45, enrolled: 42 },
-  { id: "s5", classroom: "Form 2", name: "West", capacity: 45, enrolled: 40 },
-  { id: "s6", classroom: "Form 2", name: "Central", capacity: 45, enrolled: 39 },
-  { id: "s7", classroom: "Form 3", name: "East", capacity: 45, enrolled: 38 },
-  { id: "s8", classroom: "Form 3", name: "West", capacity: 45, enrolled: 40 },
-  { id: "s9", classroom: "Form 4", name: "East", capacity: 48, enrolled: 46 },
-  { id: "s10", classroom: "Form 4", name: "West", capacity: 48, enrolled: 44 },
-];
+export const STREAMS = GRADE_10_STREAMS.map((stream) => ({
+  id: stream.id,
+  classroom: stream.grade,
+  name: stream.name,
+  capacity: 60,
+  enrolled: GRADE_10_ROSTER.filter((student) => student.streamId === stream.id).length,
+}));
 
 export const HOUSES = [
   { id: "h1", name: "Kilimanjaro", capacity: 120, occupied: 114, patron: "Mr. O. Wambua" },
@@ -76,7 +70,7 @@ export type Student = {
   admNo: string;
   upi: string;
   name: string;
-  gender: "Male" | "Female";
+    gender: "Male" | "Female" | "";
   classroom: string;
   stream: string;
   isBoarder: boolean;
@@ -88,45 +82,21 @@ export type Student = {
   dateAdmitted: string;
 };
 
-const NAMES = [
-  "Brian Mutuku", "Cynthia Wanjiru", "David Kiplagat", "Esther Nyambura", "Felix Otieno",
-  "Grace Achieng", "Hassan Abdi", "Irene Chepkoech", "James Mwangi", "Kelvin Njoroge",
-  "Linet Adhiambo", "Moses Kamau", "Naomi Wambui", "Oscar Kimani", "Purity Wangeci",
-  "Quinter Auma", "Ryan Kiprop", "Sharon Moraa", "Titus Barasa", "Uzi Wafula",
-  "Vivian Nekesa", "Wycliffe Odhiambo", "Xavier Mburu", "Yvonne Chelangat", "Zablon Rotich",
-];
-
-function seededStudents(): Student[] {
-  const classrooms = ["Form 1", "Form 2", "Form 3", "Form 4"];
-  const streamNames = ["East", "West", "Central"];
-  const statuses: Student["status"][] = ["Active", "Active", "Active", "Active", "Left", "Transferred"];
-  const list: Student[] = [];
-  for (let i = 0; i < 25; i++) {
-    const cls = classrooms[i % classrooms.length];
-    const stream = streamNames[i % streamNames.length];
-    const boarder = i % 3 !== 0;
-    const balance = [0, 0, 4500, 8200, 12500, 0, 21000, 3100][i % 8];
-    list.push({
-      id: `stu-${i + 1}`,
-      admNo: `${4210 + i}`,
-      upi: `KE1${(100000 + i * 37).toString().slice(0, 6)}${cls[5]}`,
-      name: NAMES[i],
-      gender: i % 2 === 0 ? "Male" : "Female",
-      classroom: cls,
-      stream,
-      isBoarder: boarder,
-      house: boarder ? HOUSES[i % HOUSES.length].name : undefined,
-      guardian: `${NAMES[(i + 7) % NAMES.length].split(" ")[0]} ${NAMES[i].split(" ")[1]}`,
-      guardianPhone: `07${(12000000 + i * 91111).toString().slice(0, 7)}`,
-      status: statuses[i % statuses.length],
-      balance,
-      dateAdmitted: `202${2 + (i % 4)}-01-${(9 + (i % 20)).toString().padStart(2, "0")}`,
-    });
-  }
-  return list;
-}
-
-export const STUDENTS: Student[] = seededStudents();
+export const STUDENTS: Student[] = GRADE_10_ROSTER.map(({ admNo, name, stream }) => ({
+  id: `stu-${admNo.toLowerCase()}`,
+  admNo,
+  upi: "",
+  name,
+    gender: "",
+  classroom: "Grade 10",
+  stream,
+  isBoarder: false,
+  guardian: "",
+  guardianPhone: "",
+  status: "Active",
+  balance: 0,
+  dateAdmitted: "",
+}));
 
 export type Transaction = {
   id: string;

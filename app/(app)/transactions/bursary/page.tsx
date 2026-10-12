@@ -8,13 +8,17 @@ import { kes } from "@/lib/format";
 import { STUDENTS } from "@/lib/mock-data";
 
 const BURSARIES = [
-  { id: "b1", ref: "BRS-2026-014", source: "NG-CDF", student: "Grace Achieng", admNo: "4216", amount: 15000, date: "2026-05-06" },
-  { id: "b2", ref: "BRS-2026-015", source: "County Bursary Board", student: "Hassan Abdi", admNo: "4217", amount: 8000, date: "2026-05-09" },
-  { id: "b3", ref: "BRS-2026-016", source: "NG-CDF", student: "Purity Wangeci", admNo: "4223", amount: 12000, date: "2026-05-14" },
+  { id: "b1", ref: "BRS-2026-014", source: "NG-CDF", admNo: "SS2115", amount: 15000, date: "2026-05-06" },
+  { id: "b2", ref: "BRS-2026-015", source: "County Bursary Board", admNo: "SS2114", amount: 8000, date: "2026-05-09" },
+  { id: "b3", ref: "BRS-2026-016", source: "NG-CDF", admNo: "SS2116", amount: 12000, date: "2026-05-14" },
 ];
 
 export default function BursaryPage() {
   const student = STUDENTS[3];
+  const bursaries = BURSARIES.map((bursary) => ({
+    ...bursary,
+    student: STUDENTS.find((item) => item.admNo === bursary.admNo)?.name ?? "",
+  }));
 
   return (
     <div>
@@ -62,7 +66,7 @@ export default function BursaryPage() {
         </div>
         <DataTable
           keyField={(b) => b.id}
-          rows={BURSARIES}
+          rows={bursaries}
           columns={[
             { header: "Ref", render: (b) => <span className="figures text-xs">{b.ref}</span> },
             { header: "Source", render: (b) => <span className="text-xs text-ink-soft">{b.source}</span> },

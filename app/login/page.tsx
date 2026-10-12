@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { ShieldCheck, ArrowRight } from "lucide-react";
+import { ShieldCheck, ArrowRight, Landmark, BookOpen } from "lucide-react";
 import { SCHOOL } from "@/lib/mock-data";
 import { Input, Field } from "@/components/ui/Form";
 import { Button } from "@/components/ui/Button";
@@ -12,6 +12,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [portal, setPortal] = useState<"finance" | "academic">("finance");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -35,7 +36,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/dashboard");
+      router.push(portal === "finance" ? "/dashboard" : "/academic/registration");
       router.refresh();
     } catch {
       setError("Network error. Please try again.");
@@ -54,14 +55,14 @@ export default function LoginPage() {
             </div>
             <div className="leading-tight">
               <p className="font-display text-base text-ink">ST. ELIZABETH GIRLS SENIOR SCHOOL</p>
-              <p className="text-[10.5px] text-ink-soft tracking-wide">Public School Finance</p>
+              <p className="text-[10.5px] text-ink-soft tracking-wide">Finance &amp; Academic System</p>
             </div>
           </div>
 
           <p className="figures text-[11px] uppercase tracking-[0.2em] text-brass mb-2">Staff Sign In</p>
           <h1 className="font-display text-2xl text-ink mb-1.5">Welcome back</h1>
           <p className="text-sm text-ink-soft mb-4">
-            This system is for administrative and finance staff only. Students and guardians do not have accounts.
+            Choose a portal, then sign in with your staff account. Students and guardians do not have accounts.
           </p>
           <div className="mb-6 rounded-md bg-brass-dim border border-brass/30 px-3.5 py-2.5">
             <p className="text-[11px] text-ink-soft leading-relaxed">
@@ -70,6 +71,36 @@ export default function LoginPage() {
               <span className="figures">admin123</span>
             </p>
           </div>
+
+          <fieldset className="mb-5 space-y-2">
+            <legend className="text-xs font-medium text-ink-soft mb-2">Choose a portal</legend>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                aria-pressed={portal === "finance"}
+                onClick={() => setPortal("finance")}
+                className={`min-h-11 flex items-center justify-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brass ${
+                  portal === "finance"
+                    ? "border-spine bg-spine text-paper"
+                    : "border-line-strong bg-surface text-ink-soft hover:border-spine hover:text-ink"
+                }`}
+              >
+                <Landmark size={16} /> Finance
+              </button>
+              <button
+                type="button"
+                aria-pressed={portal === "academic"}
+                onClick={() => setPortal("academic")}
+                className={`min-h-11 flex items-center justify-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brass ${
+                  portal === "academic"
+                    ? "border-spine bg-spine text-paper"
+                    : "border-line-strong bg-surface text-ink-soft hover:border-spine hover:text-ink"
+                }`}
+              >
+                <BookOpen size={16} /> Academic
+              </button>
+            </div>
+          </fieldset>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
             <Field label="Staff email or username" required>

@@ -35,7 +35,9 @@ for all money values, and a faint ruled-paper background. Tokens live in `app/gl
 - `app/login/` — staff sign-in screen (not wired to auth)
 - `lib/nav-config.ts` — the single source of truth for navigation, module grouping, and which of the
   five roles (Super Admin, Finance/Bursar, Registrar, Head Teacher, Payroll Officer) can see each screen
-- `lib/mock-data.ts` — all placeholder data: students, transactions, vote heads, staff, IPSAS figures
+- `lib/grade-10-roster.ts` — Grade 10 names and admission numbers from the supplied room rosters,
+  shared by the academic and finance previews
+- `lib/mock-data.ts` — finance preview data; transaction and balance values remain illustrative
 - `lib/format.ts` — KES currency / number formatting helpers
 - `components/ui/` — shared primitives: DataTable, Card, Button, Form fields, Stamp badges, Toolbar
 - `components/layout/` — Sidebar, Topbar, and RoleContext (the role switcher in the topbar avatar menu

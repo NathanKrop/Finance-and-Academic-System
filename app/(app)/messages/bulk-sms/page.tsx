@@ -58,7 +58,7 @@ export default function BulkSmsPage() {
             <div className="flex items-start gap-2.5">
               <Info size={15} className="text-brass mt-0.5 shrink-0" />
               <p className="text-[11.5px] text-ink-soft leading-relaxed">
-                Each guardian's message is personalised before sending — balances and receipt numbers are pulled
+                Each guardian&apos;s message is personalised before sending — balances and receipt numbers are pulled
                 live so no two messages in a batch are identical.
               </p>
             </div>

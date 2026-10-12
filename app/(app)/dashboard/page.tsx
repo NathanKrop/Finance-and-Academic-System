@@ -53,7 +53,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard label="Collected — Term to Date" value={kes(totalCollected)} hint="Across all payment types" icon={Wallet} tone="green" />
         <StatCard label="Outstanding Balances" value={kes(totalDefaultBalance)} hint={`${DEFAULTERS.length} students in arrears`} icon={AlertTriangle} tone="rust" />
-        <StatCard label="Active Students" value={totalStudents.toLocaleString()} hint="Form 1 – Form 4" icon={Users} />
+        <StatCard label="Active Students" value={totalStudents.toLocaleString()} hint="Grade 10" icon={Users} />
         <StatCard label="Receipts Issued" value={TRANSACTIONS.filter((t) => !t.voided).length.toString()} hint="This term, excluding voided" icon={Receipt} tone="brass" />
       </div>
 

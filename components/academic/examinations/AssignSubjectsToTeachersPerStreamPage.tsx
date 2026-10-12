@@ -1,0 +1,176 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { ToolSwitch } from "@/components/academic/examinations/ToolSwitch";
+import { useExaminationsData } from "@/components/academic/examinations/ExaminationsProvider";
+import { useRegistrationData } from "@/components/academic/registration/RegistrationProvider";
+
+const SUBJECT_META: Record<string, { label: string }> = {
+  "subject-english": { label: "English" },
+  "subject-maths": { label: "Mathematics" },
+  "subject-kiswahili": { label: "Kiswahili" },
+  "subject-physics": { label: "Physics" },
+};
+
+const SUBJECT_LOOKUP: Record<string, string[]> = {
+  "stream-f3-oxford": ["subject-english", "subject-maths", "subject-kiswahili"],
+  "stream-f4-cambridge": ["subject-english", "subject-maths", "subject-physics"],
+  "stream-g10-stem": ["subject-english", "subject-maths", "subject-physics"],
+};
+
+const TEACHERS = [
+  { id: "teacher-1", name: "Caroline Njeri" },
+  { id: "teacher-2", name: "Beatrice Kilonzo" },
+  { id: "teacher-3", name: "Dennis Kiptoo" },
+];
+
+export function AssignSubjectsToTeachersPerStreamPage() {
+  const { data: regData } = useRegistrationData();
+  const { data, setData } = useExaminationsData();
+  const [streamId, setStreamId] = useState("stream-f3-oxford");
+  const [rows, setRows] = useState<Array<{ id: string; subjectId: string; subjectLabel: string; teacherId: string }>>([]);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+
+  const streamOptions = useMemo<Array<{ value: string; label: string }>>(
+    () => regData.streams.map((stream) => ({ value: stream.id, label: `${stream.grade} ${stream.name}` })),
+    [regData.streams],
+  );
+
+  const subjectOptions = useMemo<Array<{ value: string; label: string }>>(
+    () => (SUBJECT_LOOKUP[streamId] ?? []).map((subjectId) => ({
+      value: subjectId,
+      label: SUBJECT_META[subjectId]?.label ?? subjectId,
+    })),
+    [streamId],
+  );
+
+  const toolEnabled = data.toolSettings["exams.teachers_per_stream"] ?? true;
+
+  const loadAssignments = () => {
+    const nextRows = (SUBJECT_LOOKUP[streamId] ?? []).map((subjectId, index) => ({
+      id: subjectId,
+      subjectId,
+      subjectLabel: SUBJECT_META[subjectId]?.label ?? subjectId,
+      teacherId: TEACHERS[index % TEACHERS.length]?.id ?? "teacher-1",
+    }));
+    setRows(nextRows);
+  };
+
+  const updateTeacher = (subjectId: string, teacherId: string) => {
+    setRows((current) => current.map((row) => row.subjectId === subjectId ? { ...row, teacherId } : row));
+  };
+
+  const saveAssignments = () => {
+    setSavedAt(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+    setData((current) => ({
+      ...current,
+      toolSettings: { ...current.toolSettings, "exams.teachers_per_stream": true },
+    }));
+  };
+
+  return (
+    <section className="space-y-6">
+      <header className="rounded-2xl border border-academic-line bg-academic-surface p-5 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-academic-accent">Examinations</p>
+            <h1 className="mt-2 font-display text-3xl text-academic-ink">Assign Subjects to Teachers per Stream</h1>
+          </div>
+          <div className="w-full max-w-xs">
+            <ToolSwitch
+              checked={toolEnabled}
+              label="Tool enabled"
+              onChange={(checked) => setData((current) => ({
+                ...current,
+                toolSettings: { ...current.toolSettings, "exams.teachers_per_stream": checked },
+              }))}
+            />
+          </div>
+        </div>
+      </header>
+
+      {!toolEnabled && (
+        <div className="rounded-xl border border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          This tool is switched off.
+        </div>
+      )}
+
+      <div className="rounded-2xl border border-academic-line bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <label className="block w-full max-w-md">
+            <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Stream</span>
+            <select
+              value={streamId}
+              disabled={!toolEnabled}
+              onChange={(event) => setStreamId(event.target.value)}
+              className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink"
+            >
+              {streamOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <button
+            type="button"
+            disabled={!toolEnabled}
+            onClick={loadAssignments}
+            className="rounded-md bg-academic-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-academic-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Load assignments
+          </button>
+        </div>
+
+        <div className="mt-6 overflow-x-auto rounded-xl border border-academic-line bg-white">
+          <table className="min-w-full border-collapse text-left text-sm">
+            <thead className="bg-academic-muted text-academic-ink">
+              <tr>
+                <th className="border-b border-academic-line px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.08em]">Subject</th>
+                <th className="border-b border-academic-line px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.08em]">Teacher</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <tr>
+                  <td colSpan={2} className="px-3 py-8 text-center text-sm text-academic-ink-soft">No teacher assignments loaded yet.</td>
+                </tr>
+              ) : (
+                rows.map((row) => (
+                  <tr key={row.id} className="border-b border-academic-line last:border-b-0">
+                    <td className="px-3 py-2.5 text-academic-ink">{row.subjectLabel}</td>
+                    <td className="px-3 py-2.5">
+                      <select
+                        value={row.teacherId}
+                        disabled={!toolEnabled}
+                        onChange={(event) => updateTeacher(row.subjectId, event.target.value)}
+                        className="w-full min-w-[180px] rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink"
+                      >
+                        {TEACHERS.map((teacher) => (
+                          <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-5 flex flex-col items-end gap-2">
+          {savedAt && (
+            <p className="text-xs uppercase tracking-[0.08em] text-emerald-700">Saved at {savedAt}</p>
+          )}
+          <button
+            type="button"
+            onClick={saveAssignments}
+            disabled={!toolEnabled || rows.length === 0}
+            className="rounded-md bg-academic-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-academic-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Save assignments
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}

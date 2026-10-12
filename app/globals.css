@@ -26,6 +26,15 @@
   --stamp-amber-dim: #f5e9d4;
   --stamp-slate: #4a5568;
   --stamp-slate-dim: #e7e9ee;
+
+  --academic-paper: #edf3ee;
+  --academic-surface: #ffffff;
+  --academic-ink: #1b3329;
+  --academic-ink-soft: #4c6658;
+  --academic-line: #cbd9cf;
+  --academic-accent: #286347;
+  --academic-accent-soft: #dfede3;
+  --academic-new: #f0c94d;
 }
 
 @theme inline {
@@ -53,6 +62,15 @@
   --color-stamp-amber-dim: var(--stamp-amber-dim);
   --color-stamp-slate: var(--stamp-slate);
   --color-stamp-slate-dim: var(--stamp-slate-dim);
+
+  --color-academic-paper: var(--academic-paper);
+  --color-academic-surface: var(--academic-surface);
+  --color-academic-ink: var(--academic-ink);
+  --color-academic-ink-soft: var(--academic-ink-soft);
+  --color-academic-line: var(--academic-line);
+  --color-academic-accent: var(--academic-accent);
+  --color-academic-accent-soft: var(--academic-accent-soft);
+  --color-academic-new: var(--academic-new);
 
   --font-display: "Fraunces", ui-serif, Georgia, serif;
   --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
@@ -146,5 +164,39 @@ body {
 .perforated::after { right: -6px; }
 
 @media print {
+  @page cbe-portrait { size: A4 portrait; margin: 12mm; }
+  @page cbe-landscape { size: A4 landscape; margin: 10mm; }
+
   .no-print { display: none !important; }
+  body:has(.academic-print-document) * { visibility: hidden !important; }
+  body:has(.academic-print-document) .academic-print-document,
+  body:has(.academic-print-document) .academic-print-document * { visibility: visible !important; }
+  body:has(.academic-print-document) .academic-print-document {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    max-width: none;
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    padding: 0;
+    box-shadow: none;
+    background: #fff;
+    color: #111;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .academic-print-document[data-orientation="portrait"] { page: cbe-portrait; }
+  .academic-print-document[data-orientation="landscape"] { page: cbe-landscape; }
+  .academic-print-document .overflow-x-auto { max-width: none !important; overflow: visible !important; }
+  .report-table { width: 100%; border-collapse: collapse; }
+  .report-table th,
+  .report-table td { border: 1px solid #7b827c; padding: 4px 5px; }
+  .report-table { font-size: 8pt; }
+  .report-table th { background: #e8eee9 !important; color: #17241c; font-weight: 700; }
+  .report-table tr { break-inside: avoid; page-break-inside: avoid; }
+  .report-page { break-after: page; page-break-after: always; }
+  .report-page:last-child { break-after: auto; page-break-after: auto; }
 }

@@ -6,12 +6,12 @@ import { DataTable } from "@/components/ui/DataTable";
 import { StatusStamp } from "@/components/ui/Stamp";
 
 const PREVIEW_ROWS = [
-  { row: 2, admNo: "4301", name: "Peter Kariuki", classroom: "Form 1", issue: null },
-  { row: 3, admNo: "4302", name: "Mercy Wanjiku", classroom: "Form 1", issue: null },
-  { row: 4, admNo: "4234", name: "Samuel Otieno", classroom: "Form 1", issue: "Duplicate Adm No — already registered" },
-  { row: 5, admNo: "4304", name: "Alice Nyaguthii", classroom: "Form1", issue: "Unrecognised classroom \"Form1\" — check spelling" },
-  { row: 6, admNo: "4305", name: "", classroom: "Form 1", issue: "Full name is required" },
-  { row: 7, admNo: "4306", name: "Brian Kiplangat", classroom: "Form 1", issue: null },
+  { row: 2, admNo: "SS2115", name: "JOYLINE CHEMTAI", classroom: "Grade 10", issue: null },
+  { row: 3, admNo: "SS2114", name: "ABIGAEL CHEPKEMOI SIRMA", classroom: "Grade 10", issue: null },
+  { row: 4, admNo: "SS2122", name: "STELLA CHEYECH LOCHERO", classroom: "Grade 10", issue: "Duplicate Adm No — already registered" },
+  { row: 5, admNo: "SS2123", name: "BRENDA CHEPTOO KSANG", classroom: "Grade10", issue: "Unrecognised classroom \"Grade10\" — check spelling" },
+  { row: 6, admNo: "SS2131", name: "", classroom: "Grade 10", issue: "Full name is required" },
+  { row: 7, admNo: "SS2116", name: "ESTHER NEKESA", classroom: "Grade 10", issue: null },
 ];
 
 export default function BulkUploadPage() {
@@ -51,7 +51,7 @@ export default function BulkUploadPage() {
           <CardHeader
             eyebrow="Step 3"
             title="Validation preview"
-            subtitle="form1-intake-2026.xlsx · 6 rows detected"
+            subtitle="grade-10-intake-2026.xlsx · 6 rows detected"
           />
           <div className="flex items-center gap-2 mb-4">
             <span className="stamp stamp-green"><CheckCircle2 size={11} /> {PREVIEW_ROWS.length - errorCount} ready</span>
