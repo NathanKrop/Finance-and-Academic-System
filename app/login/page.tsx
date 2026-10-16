@@ -64,13 +64,15 @@ export default function LoginPage() {
           <p className="text-sm text-ink-soft mb-4">
             Choose a portal, then sign in with your staff account. Students and guardians do not have accounts.
           </p>
-          <div className="mb-6 rounded-md bg-brass-dim border border-brass/30 px-3.5 py-2.5">
-            <p className="text-[11px] text-ink-soft leading-relaxed">
-              <span className="font-medium text-ink">Demo access:</span>{" "}
-              <span className="figures">admin@st.elizabethgirls.ac.ke</span> /{" "}
-              <span className="figures">admin123</span>
-            </p>
-          </div>
+          {process.env.NODE_ENV !== "production" && (
+            <div className="mb-6 rounded-md bg-brass-dim border border-brass/30 px-3.5 py-2.5">
+              <p className="text-[11px] text-ink-soft leading-relaxed">
+                <span className="font-medium text-ink">Demo access:</span>{" "}
+                <span className="figures">admin@st.elizabethgirls.ac.ke</span> /{" "}
+                <span className="figures">admin123</span>
+              </p>
+            </div>
+          )}
 
           <fieldset className="mb-5 space-y-2">
             <legend className="text-xs font-medium text-ink-soft mb-2">Choose a portal</legend>

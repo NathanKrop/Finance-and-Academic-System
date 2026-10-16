@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createDemoSessionToken, DEMO_EMAIL, DEMO_SESSION_COOKIE, isDemoCredentials, isDemoLoginEnabled } from "@/lib/demo-auth";
 import { createClient } from "@/lib/supabase/server";
 
-// Demo credentials for testing without Supabase configured
-const DEMO_EMAIL = "admin@st.elizabethgirls.ac.ke";
-const DEMO_PASSWORD = "admin123";
-
 export async function POST(request: NextRequest) {
-  const { email, password } = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "A valid JSON request body is required" }, { status: 400 });
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ error: "A valid JSON object is required" }, { status: 400 });
+  }
+  const { email, password } = body as { email?: unknown; password?: unknown };
 
   if (!email || !password) {
     return NextResponse.json(
@@ -15,31 +21,39 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (isDemoLoginEnabled() && isDemoCredentials(email, password)) {
+    const response = NextResponse.json({
+      data: {
+        user: {
+          id: "demo-user",
+          email: DEMO_EMAIL,
+          role: "super_admin",
+        },
+        demo: true,
+      },
+    });
+    response.cookies.set(DEMO_SESSION_COOKIE, await createDemoSessionToken(), {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 8 * 60 * 60,
+    });
+    return response;
+  }
+
   const supabase = await createClient();
 
-  // Demo mode: allow login with demo credentials when Supabase isn't configured
   if (!supabase) {
-    if (email === DEMO_EMAIL && password === DEMO_PASSWORD) {
-      return NextResponse.json({
-        data: {
-          user: {
-            id: "demo-user",
-            email: DEMO_EMAIL,
-            role: "super_admin",
-          },
-          demo: true,
-        },
-      });
-    }
     return NextResponse.json(
-      { error: "Demo mode: use admin@st.elizabethgirls.ac.ke / admin123" },
-      { status: 401 }
+      { error: isDemoLoginEnabled() ? "Invalid demo credentials" : "Authentication service is not configured" },
+      { status: isDemoLoginEnabled() ? 401 : 503 }
     );
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
+    email: String(email),
+    password: String(password),
   });
 
   if (error) {

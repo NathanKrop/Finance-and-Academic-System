@@ -1,13 +1,37 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { DEMO_SESSION_COOKIE, hasDemoSessionCookie, isDemoLoginEnabled } from "@/lib/demo-auth";
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   });
 
+  const isLoginPage = request.nextUrl.pathname === "/login";
+  const isApiRoute = request.nextUrl.pathname.startsWith("/api/");
+  const isAuthApi = request.nextUrl.pathname.startsWith("/api/auth/");
+  const hasDemoSession = isDemoLoginEnabled()
+    && await hasDemoSessionCookie(request.headers.get("cookie"));
+
+  if (hasDemoSession && isLoginPage) {
+    supabaseResponse.cookies.set(DEMO_SESSION_COOKIE, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+    return supabaseResponse;
+  }
+
+  if (hasDemoSession) {
+    return supabaseResponse;
+  }
+
   // Skip auth checks if Supabase is not configured (dev mode without backend)
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    if (isApiRoute && !isAuthApi && !hasDemoSession) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return supabaseResponse;
   }
 
@@ -38,10 +62,6 @@ export async function proxy(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const isLoginPage = request.nextUrl.pathname === "/login";
-  const isApiRoute = request.nextUrl.pathname.startsWith("/api/");
-  const isAuthApi = request.nextUrl.pathname.startsWith("/api/auth/");
 
   // Allow auth API routes without session
   if (isApiRoute && isAuthApi) {

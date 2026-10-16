@@ -1,6 +1,7 @@
 "use client";
 
-import { Menu, ChevronDown, Bell } from "lucide-react";
+import { Menu, ChevronDown, Bell, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ROLES } from "@/lib/nav-config";
 import { useRole } from "./RoleContext";
@@ -8,8 +9,18 @@ import { SCHOOL } from "@/lib/mock-data";
 
 export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   const { role, setRole } = useRole();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const current = ROLES.find((r) => r.id === role)!;
+
+  async function handleSignOut() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      router.push("/login");
+      router.refresh();
+    }
+  }
 
   return (
     <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-paper/90 backdrop-blur px-4 sm:px-6 h-16 no-print">
@@ -65,6 +76,17 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
                     <span className="text-[11px] text-ink-soft">{r.blurb}</span>
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    void handleSignOut();
+                  }}
+                  className="mt-2 flex w-full items-center justify-between rounded-md border border-line bg-paper px-2.5 py-2 text-left text-sm text-ink hover:border-line-strong"
+                >
+                  <span>Sign out</span>
+                  <LogOut size={14} className="text-ink-soft" />
+                </button>
               </div>
             </>
           )}

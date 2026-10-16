@@ -1,32 +1,98 @@
 "use client";
 
-import { useState } from "react";
-import { Printer, Zap } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Save, Zap } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Field, Input, Select, Checkbox } from "@/components/ui/Form";
+import { Field, Input, Select } from "@/components/ui/Form";
 import { DataTable } from "@/components/ui/DataTable";
 import { kes } from "@/lib/format";
-import { STUDENTS, TRANSACTIONS, VOTE_HEADS, PAYMENT_TYPES, BANK_ACCOUNTS } from "@/lib/mock-data";
+import { SCHOOL, CLASSROOMS, STREAMS, VOTE_HEADS, PAYMENT_TYPES, BANK_ACCOUNTS } from "@/lib/mock-data";
+
+type StudentRecord = {
+  id: string;
+  adm_no: string;
+  full_name: string;
+  classroom_id: string | null;
+  stream_id: string | null;
+  classrooms?: { name: string } | null;
+  streams?: { name: string } | null;
+};
+
+type VoteHeadOption = { id: string; name: string; type: string };
+type PaymentTypeOption = { id: string; name: string };
+type BankAccountOption = { id: string; bank: string; type?: string; purpose?: string };
+
+type ReceiptRecord = {
+  id: string;
+  receipt_no: string;
+  amount: number;
+  transaction_date: string;
+  voided: boolean;
+  vote_heads?: { name: string } | null;
+};
 
 export default function FeesPaymentPage() {
-  const student = STUDENTS[6];
-  const recent = TRANSACTIONS.filter((t) => t.studentAdm === student.admNo).slice(0, 4);
-  const feeVoteHeads = VOTE_HEADS.filter((v) => v.type === "Receipt");
-
+  const [voteHeads, setVoteHeads] = useState<VoteHeadOption[]>(VOTE_HEADS);
+  const [paymentTypes, setPaymentTypes] = useState<PaymentTypeOption[]>(PAYMENT_TYPES);
+  const [bankAccounts, setBankAccounts] = useState<BankAccountOption[]>(BANK_ACCOUNTS);
+  const [student, setStudent] = useState<StudentRecord | null>(null);
+  const [recent, setRecent] = useState<ReceiptRecord[]>([]);
+  const [paidTerm, setPaidTerm] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [form, setForm] = useState({
-    adm_no: student.admNo,
-    vote_head: "Tuition",
+    adm_no: "",
+    vote_head: VOTE_HEADS.find((voteHead) => voteHead.type === "Receipt")?.id ?? "",
     amount: "",
     payment_type: "",
     bank_account: "",
     ref_no: "",
     transaction_date: new Date().toISOString().split("T")[0],
   });
+  const feeVoteHeads = voteHeads.filter((voteHead) => voteHead.type === "Receipt");
+
+  useEffect(() => {
+    async function loadReferences() {
+      try {
+        const response = await fetch("/api/reference");
+        if (!response.ok) return;
+        const result: {
+          data?: {
+            vote_heads?: VoteHeadOption[];
+            payment_types?: PaymentTypeOption[];
+            bank_accounts?: BankAccountOption[];
+          };
+        } = await response.json();
+        if (!result.data) return;
+
+        const nextVoteHeads = result.data.vote_heads ?? VOTE_HEADS;
+        const nextPaymentTypes = result.data.payment_types ?? PAYMENT_TYPES;
+        const nextBankAccounts = result.data.bank_accounts ?? BANK_ACCOUNTS;
+        setVoteHeads(nextVoteHeads);
+        setPaymentTypes(nextPaymentTypes);
+        setBankAccounts(nextBankAccounts);
+        setForm((previous) => ({
+          ...previous,
+          vote_head: nextVoteHeads.find((item) => item.id === previous.vote_head)?.id
+            ?? nextVoteHeads.find((item) => item.type === "Receipt")?.id
+            ?? "",
+          payment_type: nextPaymentTypes.find((item) => item.id === previous.payment_type)?.id
+            ?? nextPaymentTypes[0]?.id
+            ?? "",
+          bank_account: nextBankAccounts.find((item) => item.id === previous.bank_account)?.id
+            ?? nextBankAccounts[0]?.id
+            ?? "",
+        }));
+      } catch {
+        return;
+      }
+    }
+
+    void loadReferences();
+  }, []);
 
   function update(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -39,25 +105,25 @@ export default function FeesPaymentPage() {
     setLoading(true);
 
     try {
-      // Look up the student by adm_no
       const studentRes = await fetch(`/api/students?q=${encodeURIComponent(form.adm_no)}`);
-      const studentData = await studentRes.json();
+      const studentData: { data?: StudentRecord[] } = await studentRes.json();
 
-      if (!studentRes.ok || !studentData.data || studentData.data.length === 0) {
+      const foundStudent = studentData.data?.find((item) => item.adm_no === form.adm_no.trim());
+      if (!studentRes.ok || !foundStudent) {
         setError(`No student found with admission number ${form.adm_no}`);
         setLoading(false);
         return;
       }
 
-      const foundStudent = studentData.data[0];
+      setStudent(foundStudent);
 
       const res = await fetch("/api/transactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           student_id: foundStudent.id,
-          term: "Term 2",
-          academic_year: 2026,
+          term: SCHOOL.term,
+          academic_year: SCHOOL.year,
           vote_head_id: form.vote_head,
           amount: Number(form.amount),
           payment_type_id: form.payment_type,
@@ -76,6 +142,21 @@ export default function FeesPaymentPage() {
       }
 
       setSuccess(`Payment recorded. Receipt No: ${data.data.receipt_no}`);
+      try {
+        const historyResponse = await fetch(
+          `/api/transactions?student_id=${encodeURIComponent(foundStudent.id)}&term=${encodeURIComponent(SCHOOL.term)}&academic_year=${SCHOOL.year}&voided=false`
+        );
+        if (historyResponse.ok) {
+          const history: { data?: ReceiptRecord[] } = await historyResponse.json();
+          const receipts = history.data ?? [];
+          setRecent(receipts.slice(0, 4));
+          setPaidTerm(receipts.reduce((total, receipt) => total + (receipt.voided ? 0 : Number(receipt.amount)), 0));
+        }
+      } catch {
+        setRecent((current) => [data.data, ...current].slice(0, 4));
+        setPaidTerm((current) => current + Number(data.data.amount));
+      }
+
       setForm((prev) => ({ ...prev, amount: "", ref_no: "" }));
       setLoading(false);
     } catch {
@@ -112,10 +193,17 @@ export default function FeesPaymentPage() {
               </Field>
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Student Name">
-                  <Input defaultValue={student.name} readOnly className="bg-paper-dim" />
+                  <Input value={student?.full_name ?? ""} readOnly className="bg-paper-dim" />
                 </Field>
                 <Field label="Class">
-                  <Input defaultValue={`${student.classroom} ${student.stream}`} readOnly className="bg-paper-dim" />
+                  <Input
+                    value={[
+                      student?.classrooms?.name ?? CLASSROOMS.find((item) => item.id === student?.classroom_id)?.name ?? student?.classroom_id,
+                      student?.streams?.name ?? STREAMS.find((item) => item.id === student?.stream_id)?.name ?? student?.stream_id,
+                    ].filter(Boolean).join(" · ")}
+                    readOnly
+                    className="bg-paper-dim"
+                  />
                 </Field>
               </div>
             </div>
@@ -147,7 +235,7 @@ export default function FeesPaymentPage() {
                   required
                 >
                   <option value="" disabled>Select payment type</option>
-                  {PAYMENT_TYPES.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  {paymentTypes.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </Select>
               </Field>
               <Field label="Bank Account" required>
@@ -157,7 +245,7 @@ export default function FeesPaymentPage() {
                   required
                 >
                   <option value="" disabled>Select bank account</option>
-                  {BANK_ACCOUNTS.map((b) => <option key={b.id} value={b.id}>{b.bank} — {b.type}</option>)}
+                  {bankAccounts.map((b) => <option key={b.id} value={b.id}>{b.bank} — {b.type ?? b.purpose}</option>)}
                 </Select>
               </Field>
               <Field label="Ref No." required hint="M-Pesa code, cheque no. or deposit slip no.">
@@ -191,12 +279,8 @@ export default function FeesPaymentPage() {
             )}
 
             <div className="flex items-center justify-between pt-2">
-              <div className="flex items-center gap-5">
-                <Checkbox label="Auto receipt number" defaultChecked />
-                <Checkbox label="Print / preview receipt" defaultChecked />
-              </div>
-              <Button variant="primary" size="md" icon={Printer} type="submit" disabled={loading}>
-                {loading ? "Saving…" : "Save & Print Receipt"}
+              <Button variant="primary" size="md" icon={Save} type="submit" disabled={loading}>
+                {loading ? "Saving…" : "Record Payment"}
               </Button>
             </div>
           </form>
@@ -204,12 +288,12 @@ export default function FeesPaymentPage() {
 
         <div className="space-y-5">
           <Card className="bg-spine text-paper border-spine">
-            <p className="text-[11px] uppercase tracking-[0.16em] text-paper/60 mb-1.5">Running Total Balance</p>
-            <p className="figures text-3xl font-medium mb-1">{kes(student.balance)}</p>
-            <p className="text-xs text-paper/60">Updates live as this payment is entered</p>
+            <p className="text-[11px] uppercase tracking-[0.16em] text-paper/60 mb-1.5">Paid This Term</p>
+            <p className="figures text-3xl font-medium mb-1">{kes(paidTerm)}</p>
+            <p className="text-xs text-paper/60">Outstanding balance depends on the active fee structure.</p>
             <div className="perforated mt-4 pt-3 flex items-center justify-between text-xs">
-              <span className="text-paper/60">Next receipt no.</span>
-              <span className="figures text-paper">RCT-8858</span>
+              <span className="text-paper/60">Latest receipt</span>
+              <span className="figures text-paper">{recent[0]?.receipt_no ?? "—"}</span>
             </div>
           </Card>
 
@@ -218,10 +302,10 @@ export default function FeesPaymentPage() {
             <DataTable
               dense
               keyField={(t) => t.id}
-              rows={recent.length ? recent : TRANSACTIONS.slice(0, 4)}
+              rows={recent}
               columns={[
-                { header: "Receipt", render: (t) => <span className="figures text-xs">{t.receiptNo}</span> },
-                { header: "Vote Head", render: (t) => <span className="text-xs text-ink-soft">{t.voteHead}</span> },
+                { header: "Receipt", render: (t) => <span className="figures text-xs">{t.receipt_no}</span> },
+                { header: "Vote Head", render: (t) => <span className="text-xs text-ink-soft">{t.vote_heads?.name ?? "—"}</span> },
                 { header: "Amount", align: "right", render: (t) => <span className="figures text-xs font-medium">{kes(t.amount)}</span> },
               ]}
             />

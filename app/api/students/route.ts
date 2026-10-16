@@ -1,15 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createStudentStore, DuplicateAdmissionNumberError } from "@/lib/student-store";
 import { createClient } from "@/lib/supabase/server";
+import { hasDemoSessionCookie } from "@/lib/demo-auth";
+
+async function shouldUseLocalStudentStore(request: NextRequest) {
+  return process.env.NODE_ENV !== "production"
+    && await hasDemoSessionCookie(request.headers.get("cookie"));
+}
 
 export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  if (!supabase) {
-    return NextResponse.json({ error: "Supabase not configured" }, { status: 503 });
-  }
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q")?.trim();
   const classroomId = searchParams.get("classroom_id");
   const status = searchParams.get("status");
+
+  const supabase = await createClient();
+
+  if (!supabase || !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || await shouldUseLocalStudentStore(request)) {
+    const store = createStudentStore();
+    const data = await store.listStudents({ q: q ?? undefined, classroom_id: classroomId ?? undefined, status: status ?? undefined });
+    return NextResponse.json({ data });
+  }
 
   let query = supabase
     .from("students")
@@ -34,10 +45,6 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  if (!supabase) {
-    return NextResponse.json({ error: "Supabase not configured" }, { status: 503 });
-  }
   const body = await request.json();
 
   const {
@@ -56,6 +63,7 @@ export async function POST(request: NextRequest) {
     kcpe_marks,
     kcpe_index_no,
     kcse_index_no,
+    year_of_leaving,
     guardian_name,
     guardian_phone_primary,
     guardian_phone_secondary,
@@ -67,7 +75,6 @@ export async function POST(request: NextRequest) {
     status,
   } = body;
 
-  // Validate required fields
   if (!adm_no || !full_name || !gender) {
     return NextResponse.json(
       { error: "adm_no, full_name, and gender are required" },
@@ -75,7 +82,53 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Check for duplicate adm_no
+  const supabase = await createClient();
+
+  if (!supabase || !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || await shouldUseLocalStudentStore(request)) {
+    const store = createStudentStore();
+    const existing = await store.listStudents({ q: String(adm_no) });
+    if (existing.some((student) => student.adm_no === String(adm_no))) {
+      return NextResponse.json({ error: `Admission number ${adm_no} already exists` }, { status: 409 });
+    }
+
+    try {
+      const data = await store.createStudent({
+      adm_no,
+      upi_no,
+      full_name,
+      gender,
+      date_of_birth,
+      classroom_id,
+      stream_id,
+      form_admitted,
+      date_admitted,
+      is_boarder,
+      house_id,
+      family_id,
+      kcpe_marks,
+      kcpe_index_no,
+      kcse_index_no,
+      year_of_leaving,
+      guardian_name,
+      guardian_phone_primary,
+      guardian_phone_secondary,
+      county,
+      division,
+      location,
+      sub_location,
+      address,
+      status: status || "active",
+      });
+      return NextResponse.json({ data }, { status: 201 });
+    } catch (error) {
+      if (error instanceof DuplicateAdmissionNumberError) {
+        return NextResponse.json({ error: error.message }, { status: 409 });
+      }
+      throw error;
+    }
+
+  }
+
   const { data: existing } = await supabase
     .from("students")
     .select("id")
@@ -110,6 +163,7 @@ export async function POST(request: NextRequest) {
       kcpe_marks,
       kcpe_index_no,
       kcse_index_no,
+      year_of_leaving,
       guardian_name,
       guardian_phone_primary,
       guardian_phone_secondary,
@@ -126,6 +180,9 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
+    if (error.code === "23505") {
+      return NextResponse.json({ error: "Admission number already exists" }, { status: 409 });
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
   return NextResponse.json({ data }, { status: 201 });

@@ -1,8 +1,26 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { hasDemoSessionCookie } from "@/lib/demo-auth";
+import { BANK_ACCOUNTS, CLASSROOMS, HOUSES, PAYMENT_TYPES, STREAMS, VOTE_HEADS } from "@/lib/mock-data";
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = await createClient();
+  const useDemoReferences = process.env.NODE_ENV !== "production"
+    && await hasDemoSessionCookie(request.headers.get("cookie"));
+
+  if (useDemoReferences) {
+    return NextResponse.json({
+      data: {
+        classrooms: CLASSROOMS,
+        streams: STREAMS,
+        vote_heads: VOTE_HEADS,
+        payment_types: PAYMENT_TYPES,
+        bank_accounts: BANK_ACCOUNTS,
+        houses: HOUSES,
+      },
+    });
+  }
+
   if (!supabase) {
     return NextResponse.json({ error: "Supabase not configured" }, { status: 503 });
   }
