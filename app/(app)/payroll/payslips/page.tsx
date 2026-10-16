@@ -1,6 +1,6 @@
 import { Printer, Download } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Card, CardHeader } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Field, Select } from "@/components/ui/Form";
 import { kes } from "@/lib/format";

@@ -24,17 +24,47 @@ export type AcademicExam = {
 
 export type ExaminationsToolSettings = Record<string, boolean>;
 
+export type AssessmentMarkRecord = {
+  id: string;
+  examId: string;
+  studentId: string;
+  admNo: string;
+  subjectRef: string;
+  subject: string;
+  score: number;
+  outOf: number;
+};
+
+export type AssessmentMarkInput = Omit<AssessmentMarkRecord, "id">;
+
 export type ExaminationsData = {
   exams: AcademicExam[];
+  assessmentMarks: AssessmentMarkRecord[];
   toolSettings: ExaminationsToolSettings;
   rankingCriteria: Record<string, Record<string, Record<string, number>>>;
 };
+
+export function upsertAssessmentMarks(current: AssessmentMarkRecord[], incoming: AssessmentMarkInput[]) {
+  const marksByKey = new Map(current.map((mark) => [
+    JSON.stringify([mark.examId, mark.studentId, mark.subjectRef]),
+    mark,
+  ]));
+
+  incoming.forEach((mark) => {
+    const key = JSON.stringify([mark.examId, mark.studentId, mark.subjectRef]);
+    const existing = marksByKey.get(key);
+    marksByKey.set(key, { ...mark, id: existing?.id ?? key });
+  });
+
+  return Array.from(marksByKey.values());
+}
 
 export function newExaminationId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `exam-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export const INITIAL_EXAMINATIONS_DATA: ExaminationsData = {
+  assessmentMarks: [],
   exams: [
     {
       id: "exam-opener-1",

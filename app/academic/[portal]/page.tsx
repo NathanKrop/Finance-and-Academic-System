@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { BookOpenCheck } from "lucide-react";
 import { ACADEMIC_PORTALS } from "@/lib/academic/portals";
 
@@ -10,8 +10,12 @@ export default async function AcademicPortalPage({
   const { portal: portalKey } = await params;
   const portal = ACADEMIC_PORTALS.find((item) => item.key === portalKey);
 
-  if (!portal || portal.status !== "soon") {
+  if (!portal) {
     notFound();
+  }
+
+  if (portal.status === "built") {
+    redirect(portal.sidebar[0]?.href ?? portal.basePath);
   }
 
   return (

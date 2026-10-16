@@ -36,14 +36,6 @@ export function AssignSubjectsToTeachersPerStreamPage() {
     [regData.streams],
   );
 
-  const subjectOptions = useMemo<Array<{ value: string; label: string }>>(
-    () => (SUBJECT_LOOKUP[streamId] ?? []).map((subjectId) => ({
-      value: subjectId,
-      label: SUBJECT_META[subjectId]?.label ?? subjectId,
-    })),
-    [streamId],
-  );
-
   const toolEnabled = data.toolSettings["exams.teachers_per_stream"] ?? true;
 
   const loadAssignments = () => {

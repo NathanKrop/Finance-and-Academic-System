@@ -1,3 +1,5 @@
+import type { AcademicExam, AssessmentMarkRecord } from "@/lib/academic/examinations-data";
+
 export type CbeReportStudent = {
   id: string;
   admNo: string;
@@ -36,6 +38,39 @@ export type CbeReportRow = CbeReportStudent & {
   total: number;
   mean: number;
 };
+
+export function getCbeReportStreams(students: CbeReportStudent[], grade: string) {
+  return Array.from(new Set(students
+    .filter((student) => student.grade === grade)
+    .map((student) => student.stream)))
+    .filter(Boolean)
+    .sort((first, second) => first.localeCompare(second));
+}
+
+export function mapSavedAssessmentMarks(
+  marks: AssessmentMarkRecord[],
+  exams: Pick<AcademicExam, "id" | "title" | "year" | "term">[],
+  getGrade: (score: number) => string,
+): CbeReportMark[] {
+  const examById = new Map(exams.map((exam) => [exam.id, exam]));
+
+  return marks.flatMap((mark) => {
+    const exam = examById.get(mark.examId);
+    if (!exam || mark.outOf <= 0 || !Number.isFinite(mark.score)) return [];
+
+    const score = Math.round(Math.min(100, Math.max(0, (mark.score / mark.outOf) * 100)) * 10) / 10;
+    return [{
+      admNo: mark.admNo,
+      examId: exam.id,
+      year: exam.year,
+      term: exam.term,
+      exam: exam.title,
+      subject: mark.subject,
+      score,
+      grade: getGrade(score),
+    }];
+  });
+}
 
 export function getCompetitionRanks<T>(rows: T[], getScore: (row: T) => number): number[] {
   const ranks: number[] = [];

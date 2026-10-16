@@ -10,6 +10,7 @@ import {
   Settings2,
   UserRoundPlus,
 } from "lucide-react";
+import { getCbeSettingsSidebar } from "@/lib/academic/cbe-settings";
 
 export type AcademicSidebarItem = {
   label: string;
@@ -29,6 +30,7 @@ export type AcademicPortal = {
 
 const registrationPath = "/academic/registration";
 const examinationsPath = "/academic/examinations";
+const settingsPath = "/academic/settings";
 
 export const ACADEMIC_PORTALS: AcademicPortal[] = [
   {
@@ -72,8 +74,30 @@ export const ACADEMIC_PORTALS: AcademicPortal[] = [
       { label: "Contacts/Marks List", href: `${examinationsPath}/lists` },
     ],
   },
-  { key: "settings", label: "Settings", icon: Settings2, basePath: "/academic/settings", isNew: false, status: "soon", sidebar: [] },
-  { key: "cbe-settings", label: "CBE Settings", icon: BookOpenCheck, basePath: "/academic/cbe-settings", isNew: true, status: "soon", sidebar: [] },
+  {
+    key: "settings",
+    label: "Settings",
+    icon: Settings2,
+    basePath: settingsPath,
+    isNew: false,
+    status: "built",
+    sidebar: [
+      { label: "Subject grading", href: `${settingsPath}/subject-grading` },
+      { label: "Subjects ranking per form", href: `${settingsPath}/subjects-ranking` },
+      { label: "Overall Marks grading", href: `${settingsPath}/overall-grading` },
+      { label: "Report form comments", href: `${settingsPath}/report-form-comments` },
+      { label: "Subjects comments", href: `${settingsPath}/subjects-comments` },
+      { label: "Fees Arrears", href: `${settingsPath}/fees-arrears` },
+      { label: "Opening/Closing date", href: `${settingsPath}/opening-closing-date` },
+      { label: "Pictures Upload", href: `${settingsPath}/pictures-upload` },
+      { label: "Change password", href: `${settingsPath}/change-password` },
+      { label: "Promotion/Demotion", href: `${settingsPath}/promotion-demotion` },
+      { label: "Set Term/Year", href: `${settingsPath}/set-term-year` },
+      { label: "ClassTeacher Promotion", href: `${settingsPath}/class-teacher-promotion` },
+      { label: "Students Portal", href: `${settingsPath}/students-portal` },
+    ],
+  },
+  { key: "cbe-settings", label: "CBE Settings", icon: BookOpenCheck, basePath: "/academic/cbe-settings", isNew: true, status: "built", sidebar: getCbeSettingsSidebar() },
   { key: "oldgrading", label: "OldGrading", icon: History, basePath: "/academic/oldgrading", isNew: false, status: "soon", sidebar: [] },
   {
     key: "cbe-reports",
@@ -91,7 +115,21 @@ export const ACADEMIC_PORTALS: AcademicPortal[] = [
       { label: "Subjects Grade count", href: "/academic/cbe-reports/subjects-grade-count" },
     ],
   },
-  { key: "notes-assignments", label: "Notes & Assignments", icon: NotebookPen, basePath: "/academic/notes-assignments", isNew: false, status: "soon", sidebar: [] },
+  {
+    key: "notes-assignments",
+    label: "Notes & Assignments",
+    icon: NotebookPen,
+    basePath: "/academic/notes-assignments",
+    isNew: false,
+    status: "built",
+    sidebar: [
+      { label: "Post Assignments", href: "/academic/notes-assignments/post-assignments" },
+      { label: "Post Study Notes", href: "/academic/notes-assignments/post-study-notes" },
+      { label: "View Unmarked Assignments", href: "/academic/notes-assignments/view-unmarked-assignments" },
+      { label: "Marked Assignments", href: "/academic/notes-assignments/marked-assignments" },
+      { label: "Parents Auto-login Link", href: "/academic/notes-assignments/generate-send-parents-auto-login-link" },
+    ],
+  },
   { key: "clearance", label: "Clearance", icon: BadgeCheck, basePath: "/academic/clearance", isNew: true, status: "soon", sidebar: [] },
   { key: "message", label: "Message (SMS)", icon: MessageSquareText, basePath: "/academic/message", isNew: false, status: "soon", sidebar: [] },
 ];

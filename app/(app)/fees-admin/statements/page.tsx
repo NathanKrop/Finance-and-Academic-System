@@ -10,7 +10,6 @@ export default function StatementsPage() {
   const student = STUDENTS[6];
   const history = TRANSACTIONS.filter((t) => t.studentAdm === student.admNo);
   const totalCharged = 26800;
-  const totalPaid = history.reduce((s, t) => s + t.amount, 0);
 
   return (
     <div>

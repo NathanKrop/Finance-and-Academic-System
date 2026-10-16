@@ -29,6 +29,7 @@ export function ExaminationsProvider({ children }: { children: React.ReactNode }
           restoredData = {
             ...INITIAL_EXAMINATIONS_DATA,
             ...parsed,
+            assessmentMarks: Array.isArray(parsed.assessmentMarks) ? parsed.assessmentMarks : [],
             toolSettings: { ...INITIAL_EXAMINATIONS_DATA.toolSettings, ...(parsed.toolSettings ?? {}) },
             rankingCriteria: { ...INITIAL_EXAMINATIONS_DATA.rankingCriteria, ...(parsed.rankingCriteria ?? {}) },
           };

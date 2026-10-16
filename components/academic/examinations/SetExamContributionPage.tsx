@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ToolSwitch } from "@/components/academic/examinations/ToolSwitch";
 import { useExaminationsData } from "@/components/academic/examinations/ExaminationsProvider";
 
@@ -34,12 +34,9 @@ export function SetExamContributionPage() {
   const examOptions = useMemo(() => data.exams.map((exam) => ({ value: exam.id, label: `${exam.title} (${exam.term})` })), [data.exams]);
   const formOptions = useMemo(() => ["Grade 10", "Grade 11"], []);
   const toolEnabled = data.toolSettings["exams.contribution"] ?? true;
-
-  useEffect(() => {
-    if (!examId && examOptions.length > 0) {
-      setExamId(examOptions[0].value);
-    }
-  }, [examId, examOptions]);
+  const selectedExamId = examOptions.some((exam) => exam.value === examId)
+    ? examId
+    : examOptions[0]?.value ?? "";
 
   const totalContribution = Object.values(weights).reduce((sum, value) => sum + Number(value || 0), 0);
 
@@ -93,7 +90,7 @@ export function SetExamContributionPage() {
           <label className="block">
             <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Exam</span>
             <select
-              value={examId}
+              value={selectedExamId}
               disabled={!toolEnabled}
               onChange={(event) => setExamId(event.target.value)}
               className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink"

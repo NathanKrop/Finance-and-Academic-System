@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ToolSwitch } from "@/components/academic/examinations/ToolSwitch";
 import { useExaminationsData } from "@/components/academic/examinations/ExaminationsProvider";
 import { useRegistrationData } from "@/components/academic/registration/RegistrationProvider";
 import type { Student } from "@/lib/academic/registration-data";
+import { upsertAssessmentMarks } from "@/lib/academic/examinations-data";
 
 type StudentLike = Pick<Student, "id" | "name" | "streamId"> & { admNo: string };
 
@@ -85,16 +86,11 @@ export function MarksEntryStudentPage() {
     [streamStudents, studentId],
   );
 
+  const selectedExamId = examOptions.some((exam) => exam.value === examId) ? examId : "";
   const currentExam = useMemo(
-    () => data.exams.find((exam) => exam.id === examId),
-    [data.exams, examId],
+    () => data.exams.find((exam) => exam.id === selectedExamId),
+    [data.exams, selectedExamId],
   );
-
-  useEffect(() => {
-    if (!selectedStudent && streamStudents[0]) {
-      setStudentId(streamStudents[0].id);
-    }
-  }, [selectedStudent, streamStudents]);
 
   const toolEnabled = data.toolSettings["exams.marks_student"] ?? true;
 
@@ -125,9 +121,20 @@ export function MarksEntryStudentPage() {
   };
 
   const saveMarks = () => {
+    if (!currentExam || !selectedStudent) return;
+    const incomingMarks = rows.map((row) => ({
+      examId: currentExam.id,
+      studentId: selectedStudent.id,
+      admNo: selectedStudent.admNo,
+      subjectRef: row.id,
+      subject: row.subject,
+      score: Number(row.mark) || 0,
+      outOf: row.outOf,
+    }));
     setSavedAt(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
     setData((current) => ({
       ...current,
+      assessmentMarks: upsertAssessmentMarks(current.assessmentMarks, incomingMarks),
       toolSettings: { ...current.toolSettings, "exams.marks_student": true },
     }));
   };
@@ -201,7 +208,7 @@ export function MarksEntryStudentPage() {
           <label className="block">
             <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Exam</span>
             <select
-              value={examId}
+              value={selectedExamId}
               disabled={!toolEnabled}
               onChange={(event) => setExamId(event.target.value)}
               className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink"
@@ -273,7 +280,7 @@ export function MarksEntryStudentPage() {
           <button
             type="button"
             onClick={saveMarks}
-            disabled={!toolEnabled || rows.length === 0}
+            disabled={!toolEnabled || rows.length === 0 || !currentExam || !selectedStudent}
             className="rounded-md bg-academic-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-academic-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Save marks

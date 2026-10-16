@@ -3,6 +3,8 @@
 import { createContext, useContext, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useExaminationsData } from "@/components/academic/examinations/ExaminationsProvider";
 import { useRegistrationData } from "@/components/academic/registration/RegistrationProvider";
+import { getRubric } from "@/lib/academic/cbe-grading";
+import { mapSavedAssessmentMarks } from "@/lib/academic/cbe-report-data";
 import { getCbeReportMockData } from "@/lib/academic/cbe-reports-mock";
 
 const STORAGE_KEY = "kendi-cbe-reports-v1";
@@ -102,7 +104,13 @@ export function CbeReportsProvider({ children }: { children: React.ReactNode }) 
     });
   }, [fallback.students, isPreviewData, ready, regData.streams, regData.students, regData.teachers]);
 
-  const marks = useMemo(() => isPreviewData ? fallback.marks : [], [fallback.marks, isPreviewData]);
+  const marks = useMemo(() => isPreviewData
+    ? fallback.marks
+    : mapSavedAssessmentMarks(
+      examData.assessmentMarks,
+      examData.exams.filter((exam) => !exam.archivedAt),
+      (score) => getRubric(score).label,
+    ), [examData.assessmentMarks, examData.exams, fallback.marks, isPreviewData]);
 
   const streams = useMemo(() => Array.from(new Set(students.map((student) => student.stream))).filter(Boolean), [students]);
   const grades = useMemo(() => Array.from(new Set(students.map((student) => student.grade))).filter(Boolean), [students]);

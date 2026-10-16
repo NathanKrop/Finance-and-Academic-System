@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCbeReports, type CbeReportExamOption } from "@/components/academic/cbe-reports/CbeReportsProvider";
 import { AdvancedOptionsPanel } from "@/components/academic/cbe-reports/AdvancedOptionsPanel";
 import { FilterCard } from "@/components/academic/cbe-reports/FilterCard";
 import { PrintableReport } from "@/components/academic/cbe-reports/PrintableReport";
 import { ReportPlaceholder } from "@/components/academic/cbe-reports/ReportPlaceholder";
 import { useRegistrationData } from "@/components/academic/registration/RegistrationProvider";
-import { getCbeReportRows, getCompetitionRanks, type CbeReportMark, type CbeReportRow } from "@/lib/academic/cbe-report-data";
+import { getCbeReportRows, getCbeReportStreams, getCompetitionRanks, type CbeReportMark, type CbeReportRow } from "@/lib/academic/cbe-report-data";
 import { getRubric } from "@/lib/academic/cbe-grading";
 
 const ROUTE_TITLES: Record<string, string> = {
@@ -68,8 +68,27 @@ function NoMatchingMarks({ message = "No marks match these selections." }: { mes
   return <div className="rounded-lg border border-dashed border-academic-line px-4 py-8 text-center text-sm text-academic-ink-soft">{message}</div>;
 }
 
+function ReportSummaryBar({ details, onReset }: { details: Array<{ label: string; value: string | number }>; onReset: () => void }) {
+  return (
+    <div className="mb-4 rounded-xl border border-academic-line bg-[#eef5f0] p-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-academic-ink-soft">Summary</p>
+        <button type="button" onClick={onReset} className="text-xs font-medium text-[#1e5d42] underline decoration-2 underline-offset-2">Reset filters</button>
+      </div>
+      <div className="flex flex-wrap gap-2 text-xs text-academic-ink">
+        {details.map((detail) => (
+          <span key={detail.label} className="inline-flex items-center rounded-full border border-academic-line bg-white px-2.5 py-1">
+            <span className="mr-1 font-semibold text-academic-ink-soft">{detail.label}:</span>
+            {detail.value}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function EndTermReportsScreen({ route }: { route: string }) {
-  const { students, marks, grades, streams, examOptions, years, filters, setFilter, ready } = useCbeReports();
+  const { students, marks, grades, examOptions, years, filters, setFilter, setFilters, ready } = useCbeReports();
   const { data: registration } = useRegistrationData();
   const routeFilters = (filters[route] ?? {}) as Record<string, string | number | boolean>;
   const [enabled, setEnabled] = useState(true);
@@ -78,7 +97,8 @@ function EndTermReportsScreen({ route }: { route: string }) {
 
   const year = getSelectedYear(routeFilters.year, years);
   const selectedGrade = getSelectedOption(routeFilters.grade, grades, "Grade 10");
-  const selectedStream = getSelectedOption(routeFilters.stream, streams, "OXFORD");
+  const availableStreams = getCbeReportStreams(students, selectedGrade);
+  const selectedStream = getSelectedOption(routeFilters.stream, availableStreams, "");
   const studentFilter = String(routeFilters.student ?? "");
   const term = getSelectedOption(routeFilters.term, TERMS, "Term 3");
   const availableExams = getAvailableExams(examOptions, selectedGrade, term, year);
@@ -88,7 +108,7 @@ function EndTermReportsScreen({ route }: { route: string }) {
   const examLabel = selectedExam ? getExamOptionLabel(selectedExam, availableExams) : "";
   const useAutoComments = Boolean(routeFilters.useAutoComments ?? true);
 
-  const requiredFilled = grades.includes(selectedGrade) && streams.includes(selectedStream) && TERMS.includes(term) && Boolean(selectedExam);
+  const requiredFilled = grades.includes(selectedGrade) && availableStreams.includes(selectedStream) && TERMS.includes(term) && Boolean(selectedExam);
   const reportRows = getCbeReportRows(students, marks, {
     grade: selectedGrade,
     stream: selectedStream,
@@ -103,6 +123,19 @@ function EndTermReportsScreen({ route }: { route: string }) {
     if (!requiredFilled) return;
     setGenerated(true);
   };
+
+  const handleResetFilters = () => setFilters((current) => ({ ...current, [route]: {} }));
+
+  useEffect(() => {
+    if (!availableExams.length) {
+      if (examId) setFilter(route, "exam", "");
+      return;
+    }
+
+    if (examId && !availableExams.some((option) => option.id === examId)) {
+      setFilter(route, "exam", availableExams[0].id);
+    }
+  }, [availableExams, examId, route, setFilter]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -125,8 +158,8 @@ function EndTermReportsScreen({ route }: { route: string }) {
 
             <div className="space-y-1">
               <label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Stream</label>
-              <select value={selectedStream} disabled={!enabled} onChange={(event) => setFilter(route, "stream", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink">
-                {streams.map((value) => <option key={value} value={value}>{value}</option>)}
+              <select value={selectedStream} disabled={!enabled || !availableStreams.length} onChange={(event) => setFilter(route, "stream", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink">
+                {availableStreams.map((value) => <option key={value} value={value}>{value}</option>)}
               </select>
             </div>
 
@@ -163,6 +196,7 @@ function EndTermReportsScreen({ route }: { route: string }) {
       </FilterCard>
 
       <div className="min-w-0 rounded-2xl border border-academic-line bg-[#f8f7f3] p-4 shadow-sm">
+        {ready && <ReportSummaryBar details={[{ label: "Grade", value: selectedGrade }, { label: "Stream", value: selectedStream }, { label: "Term", value: term }, { label: "Year", value: year }, { label: "Exam", value: examLabel || "Not selected" }]} onReset={handleResetFilters} />}
         {!ready ? (
           <div className="h-32 animate-pulse rounded-xl bg-academic-paper" />
         ) : !generated ? (
@@ -221,14 +255,15 @@ function EndTermReportsScreen({ route }: { route: string }) {
 }
 
 function SubjectAnalysisMarksScreen({ route }: { route: string }) {
-  const { students, marks, grades, streams, examOptions, years, pathways, filters, setFilter } = useCbeReports();
+  const { students, marks, grades, examOptions, years, pathways, filters, setFilter, setFilters, ready } = useCbeReports();
   const routeFilters = (filters[route] ?? {}) as Record<string, string | number | boolean>;
   const [enabled, setEnabled] = useState(true);
   const [advancedOpen, setAdvancedOpen] = useState(true);
   const [generated, setGenerated] = useState(false);
 
   const selectedGrade = getSelectedOption(routeFilters.grade, grades, "Grade 10");
-  const selectedStream = getSelectedOption(routeFilters.stream, streams, "OXFORD");
+  const availableStreams = getCbeReportStreams(students, selectedGrade);
+  const selectedStream = getSelectedOption(routeFilters.stream, availableStreams, "");
   const term = getSelectedOption(routeFilters.term, TERMS, "Term 3");
   const year = getSelectedYear(routeFilters.year, years);
   const availableExams = getAvailableExams(examOptions, selectedGrade, term, year);
@@ -241,7 +276,7 @@ function SubjectAnalysisMarksScreen({ route }: { route: string }) {
   const bottomStudents = Number(routeFilters.bottom ?? 20);
   const gender = String(routeFilters.gender ?? "Both");
   const useTopBottom = Boolean(routeFilters.useTopBottom ?? false);
-  const requiredFilled = grades.includes(selectedGrade) && streams.includes(selectedStream) && TERMS.includes(term) && Boolean(selectedExam);
+  const requiredFilled = grades.includes(selectedGrade) && availableStreams.includes(selectedStream) && TERMS.includes(term) && Boolean(selectedExam);
   const scopedRows = getCbeReportRows(students, marks, { grade: selectedGrade, stream: selectedStream, pathway, year, term, examId, exam })
     .filter((row) => gender === "Both" || (gender === "Boys" ? row.gender === "Male" : row.gender === "Female"))
     .sort((first, second) => second.mean - first.mean || first.name.localeCompare(second.name));
@@ -254,12 +289,24 @@ function SubjectAnalysisMarksScreen({ route }: { route: string }) {
   ].map((row) => [row.id, row]));
   const rows = useTopBottom ? Array.from(selectedRows.values()) : scopedRows;
   const subjects = getSubjects(scopedRows.flatMap((row) => row.marks));
+  const handleResetFilters = () => setFilters((current) => ({ ...current, [route]: {} }));
+
+  useEffect(() => {
+    if (!availableExams.length) {
+      if (examId) setFilter(route, "exam", "");
+      return;
+    }
+
+    if (examId && !availableExams.some((option) => option.id === examId)) {
+      setFilter(route, "exam", availableExams[0].id);
+    }
+  }, [availableExams, examId, route, setFilter]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
       <FilterCard title="MERIT LIST (MARKS)" enabled={enabled} onToggle={setEnabled}>
         <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Grade</label><select value={selectedGrade} disabled={!enabled} onChange={(event) => setFilter(route, "grade", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink">{grades.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
-        <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Stream</label><select value={selectedStream} disabled={!enabled} onChange={(event) => setFilter(route, "stream", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink">{streams.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
+        <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Stream</label><select value={selectedStream} disabled={!enabled || !availableStreams.length} onChange={(event) => setFilter(route, "stream", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink">{availableStreams.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
         <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Term</label><select value={term} disabled={!enabled} onChange={(event) => setFilter(route, "term", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink">{TERMS.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
         <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Year</label><select value={year} disabled={!enabled} onChange={(event) => setFilter(route, "year", Number(event.target.value))} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink">{years.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
         <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Exam</label><select value={examId} disabled={!enabled || !availableExams.length} onChange={(event) => setFilter(route, "exam", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink"><option value="">{availableExams.length ? "Select exam" : "No exams for this grade, term and year"}</option>{availableExams.map((option) => <option key={option.id} value={option.id}>{getExamOptionLabel(option, availableExams)}</option>)}</select></div>
@@ -268,6 +315,7 @@ function SubjectAnalysisMarksScreen({ route }: { route: string }) {
       </FilterCard>
 
       <div className="min-w-0 space-y-4">
+        {ready && <ReportSummaryBar details={[{ label: "Grade", value: selectedGrade }, { label: "Stream", value: selectedStream }, { label: "Term", value: term }, { label: "Year", value: year }, { label: "Exam", value: examLabel || "Not selected" }, { label: "Pathway", value: pathway }]} onReset={handleResetFilters} />}
         <AdvancedOptionsPanel collapsed={!advancedOpen} onToggle={() => setAdvancedOpen((value) => !value)}>
           <label className="flex items-center gap-2"><input type="checkbox" checked={useTopBottom} disabled={!enabled} onChange={(event) => setFilter(route, "useTopBottom", event.target.checked)} />Top/Bottom students</label>
           <div className="grid grid-cols-2 gap-2">
@@ -317,13 +365,14 @@ function SubjectAnalysisMarksScreen({ route }: { route: string }) {
 }
 
 function MarksCorrectionSheetScreen({ route }: { route: string }) {
-  const { students, marks, grades, streams, examOptions, years, pathways, filters, setFilter } = useCbeReports();
+  const { students, marks, grades, examOptions, years, pathways, filters, setFilter, setFilters, ready } = useCbeReports();
   const routeFilters = (filters[route] ?? {}) as Record<string, string | number | boolean>;
   const [enabled, setEnabled] = useState(true);
   const [generated, setGenerated] = useState(false);
 
   const selectedGrade = getSelectedOption(routeFilters.grade, grades, "Grade 10");
-  const selectedStream = getSelectedOption(routeFilters.stream, streams, "OXFORD");
+  const availableStreams = getCbeReportStreams(students, selectedGrade);
+  const selectedStream = getSelectedOption(routeFilters.stream, availableStreams, "");
   const term = getSelectedOption(routeFilters.term, TERMS, "Term 3");
   const year = getSelectedYear(routeFilters.year, years);
   const availableExams = getAvailableExams(examOptions, selectedGrade, term, year);
@@ -332,16 +381,28 @@ function MarksCorrectionSheetScreen({ route }: { route: string }) {
   const exam = selectedExam?.title ?? "";
   const examLabel = selectedExam ? getExamOptionLabel(selectedExam, availableExams) : "";
   const pathway = getSelectedOption(routeFilters.pathway, pathways, "All Pathways");
-  const requiredFilled = grades.includes(selectedGrade) && streams.includes(selectedStream) && TERMS.includes(term) && Boolean(selectedExam);
+  const requiredFilled = grades.includes(selectedGrade) && availableStreams.includes(selectedStream) && TERMS.includes(term) && Boolean(selectedExam);
   const correctionRows = getCbeReportRows(students, marks, { grade: selectedGrade, stream: selectedStream, pathway, year, term, examId, exam })
     .flatMap((student) => student.marks.map((mark) => ({ student, mark })))
     .sort((first, second) => first.student.admNo.localeCompare(second.student.admNo) || first.mark.subject.localeCompare(second.mark.subject));
+  const handleResetFilters = () => setFilters((current) => ({ ...current, [route]: {} }));
+
+  useEffect(() => {
+    if (!availableExams.length) {
+      if (examId) setFilter(route, "exam", "");
+      return;
+    }
+
+    if (examId && !availableExams.some((option) => option.id === examId)) {
+      setFilter(route, "exam", availableExams[0].id);
+    }
+  }, [availableExams, examId, route, setFilter]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
       <FilterCard title="MARKS CORRECTION SHEET" enabled={enabled} onToggle={setEnabled}>
         <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Grade</label><select value={selectedGrade} disabled={!enabled} onChange={(event) => setFilter(route, "grade", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink">{grades.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
-        <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Stream</label><select value={selectedStream} disabled={!enabled} onChange={(event) => setFilter(route, "stream", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink">{streams.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
+        <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Stream</label><select value={selectedStream} disabled={!enabled || !availableStreams.length} onChange={(event) => setFilter(route, "stream", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink">{availableStreams.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
         <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Term</label><select value={term} disabled={!enabled} onChange={(event) => setFilter(route, "term", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink">{TERMS.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
         <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Year</label><select value={year} disabled={!enabled} onChange={(event) => setFilter(route, "year", Number(event.target.value))} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink">{years.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
         <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Exam</label><select value={examId} disabled={!enabled || !availableExams.length} onChange={(event) => setFilter(route, "exam", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink"><option value="">{availableExams.length ? "Select exam" : "No exams for this grade, term and year"}</option>{availableExams.map((option) => <option key={option.id} value={option.id}>{getExamOptionLabel(option, availableExams)}</option>)}</select></div>
@@ -350,6 +411,7 @@ function MarksCorrectionSheetScreen({ route }: { route: string }) {
       </FilterCard>
 
       <div className="min-w-0 rounded-2xl border border-academic-line bg-[#f8f7f3] p-4 shadow-sm">
+        {ready && <ReportSummaryBar details={[{ label: "Grade", value: selectedGrade }, { label: "Stream", value: selectedStream }, { label: "Term", value: term }, { label: "Year", value: year }, { label: "Exam", value: examLabel || "Not selected" }, { label: "Pathway", value: pathway }]} onReset={handleResetFilters} />}
         {!generated ? <ReportPlaceholder text="select each of the field on the fields provided to generate Report" /> : (
           <PrintableReport title="Marks Correction Sheet" orientation="landscape">
             <ReportScope grade={selectedGrade} stream={selectedStream} term={term} year={year} exam={examLabel} />
@@ -384,7 +446,7 @@ function MarksCorrectionSheetScreen({ route }: { route: string }) {
 }
 
 function SubjectChampionsScreen({ route }: { route: string }) {
-  const { students, marks, grades, examOptions, years, filters, setFilter } = useCbeReports();
+  const { students, marks, grades, examOptions, years, filters, setFilter, setFilters, ready } = useCbeReports();
   const { data: registration } = useRegistrationData();
   const routeFilters = (filters[route] ?? {}) as Record<string, string | number | boolean>;
   const [enabled, setEnabled] = useState(true);
@@ -426,6 +488,18 @@ function SubjectChampionsScreen({ route }: { route: string }) {
     .sort((first, second) => second.mark.score - first.mark.score);
   const tiedTopScores = subjectTopScores.filter((row) => row.mark.score === subjectTopScores[0]?.mark.score);
   const certificateChampion = tiedTopScores.length === 1 ? tiedTopScores[0] : undefined;
+  const handleResetFilters = () => setFilters((current) => ({ ...current, [route]: {} }));
+
+  useEffect(() => {
+    if (!availableExams.length) {
+      if (examId) setFilter(route, "exam", "");
+      return;
+    }
+
+    if (examId && !availableExams.some((option) => option.id === examId)) {
+      setFilter(route, "exam", availableExams[0].id);
+    }
+  }, [availableExams, examId, route, setFilter]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -441,6 +515,7 @@ function SubjectChampionsScreen({ route }: { route: string }) {
       </FilterCard>
 
       <div className="min-w-0 rounded-2xl border border-academic-line bg-[#f8f7f3] p-4 shadow-sm">
+        {ready && <ReportSummaryBar details={[{ label: "Grade", value: grade }, { label: "Term", value: term }, { label: "Year", value: year }, { label: "Exam", value: examLabel || "Not selected" }, { label: "Subject", value: subject }]} onReset={handleResetFilters} />}
         {!generated ? <div className="flex min-h-[220px] items-center justify-center border border-dashed border-academic-line bg-academic-paper text-center text-sm text-academic-ink-soft"><div><p className="font-bold uppercase tracking-[0.12em] text-academic-ink">Generate Subject Champions report and certificates</p><p className="mt-2 italic text-academic-ink-soft">(select form, term, exam and year to View subject champions or print certificate)</p></div></div> : (
           <PrintableReport title={mode === "certificate" ? "Subject Champion Certificate" : "Subject Champions"}>
             <ReportScope grade={grade} term={term} year={year} exam={examLabel} />
@@ -469,13 +544,14 @@ function SubjectChampionsScreen({ route }: { route: string }) {
 }
 
 function RankStudentsBySubjectScreen({ route }: { route: string }) {
-  const { students, marks, grades, streams, examOptions, years, filters, setFilter } = useCbeReports();
+  const { students, marks, grades, examOptions, years, filters, setFilter, setFilters, ready } = useCbeReports();
   const routeFilters = (filters[route] ?? {}) as Record<string, string | number | boolean>;
   const [enabled, setEnabled] = useState(true);
   const [generated, setGenerated] = useState(false);
 
   const grade = getSelectedOption(routeFilters.grade, grades, "Grade 10");
-  const stream = getSelectedOption(routeFilters.stream, streams, "OXFORD");
+  const availableStreams = getCbeReportStreams(students, grade);
+  const stream = getSelectedOption(routeFilters.stream, availableStreams, "");
   const term = getSelectedOption(routeFilters.term, TERMS, "Term 3");
   const year = getSelectedYear(routeFilters.year, years);
   const availableExams = getAvailableExams(examOptions, grade, term, year);
@@ -483,7 +559,7 @@ function RankStudentsBySubjectScreen({ route }: { route: string }) {
   const selectedExam = availableExams.find((option) => option.id === examId);
   const exam = selectedExam?.title ?? "";
   const examLabel = selectedExam ? getExamOptionLabel(selectedExam, availableExams) : "";
-  const requiredFilled = grades.includes(grade) && streams.includes(stream) && TERMS.includes(term) && Boolean(selectedExam);
+  const requiredFilled = grades.includes(grade) && availableStreams.includes(stream) && TERMS.includes(term) && Boolean(selectedExam);
   const scopedRows = getCbeReportRows(students, marks, { grade, stream, year, term, examId, exam });
   const subjects = getSubjects(scopedRows.flatMap((row) => row.marks));
   const subject = getSelectedOption(routeFilters.subject, ["All Subjects", ...subjects], "All Subjects");
@@ -499,12 +575,24 @@ function RankStudentsBySubjectScreen({ route }: { route: string }) {
     .filter((row) => row.subjectMarks.length > 0)
     .sort((first, second) => second.score - first.score || first.student.name.localeCompare(second.student.name));
   const rankingPositions = getCompetitionRanks(rankingRows, (row) => row.score);
+  const handleResetFilters = () => setFilters((current) => ({ ...current, [route]: {} }));
+
+  useEffect(() => {
+    if (!availableExams.length) {
+      if (examId) setFilter(route, "exam", "");
+      return;
+    }
+
+    if (examId && !availableExams.some((option) => option.id === examId)) {
+      setFilter(route, "exam", availableExams[0].id);
+    }
+  }, [availableExams, examId, route, setFilter]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
       <FilterCard title="RANK STUDENTS BY SUBJECT PERFORMANCE" enabled={enabled} onToggle={setEnabled}>
         <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Grade</label><select value={grade} disabled={!enabled} onChange={(event) => setFilter(route, "grade", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink">{grades.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
-        <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Stream</label><select value={stream} disabled={!enabled} onChange={(event) => setFilter(route, "stream", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink">{streams.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
+        <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Stream</label><select value={stream} disabled={!enabled || !availableStreams.length} onChange={(event) => setFilter(route, "stream", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink">{availableStreams.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
         <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Term</label><select value={term} disabled={!enabled} onChange={(event) => setFilter(route, "term", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink">{TERMS.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
         <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Exam</label><select value={examId} disabled={!enabled || !availableExams.length} onChange={(event) => setFilter(route, "exam", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink"><option value="">{availableExams.length ? "Select exam" : "No exams for this grade, term and year"}</option>{availableExams.map((option) => <option key={option.id} value={option.id}>{getExamOptionLabel(option, availableExams)}</option>)}</select></div>
         <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Subject</label><select value={subject} disabled={!enabled} onChange={(event) => setFilter(route, "subject", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink"><option>All Subjects</option>{subjects.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
@@ -513,6 +601,7 @@ function RankStudentsBySubjectScreen({ route }: { route: string }) {
       </FilterCard>
 
       <div className="min-w-0 rounded-2xl border border-academic-line bg-[#f8f7f3] p-4 shadow-sm">
+        {ready && <ReportSummaryBar details={[{ label: "Grade", value: grade }, { label: "Stream", value: stream }, { label: "Term", value: term }, { label: "Year", value: year }, { label: "Exam", value: examLabel || "Not selected" }, { label: "Subject", value: subject }]} onReset={handleResetFilters} />}
         {!generated ? <div className="flex min-h-[220px] items-center justify-center border border-dashed border-academic-line bg-academic-paper text-center text-sm text-academic-ink-soft"><div><p className="font-bold uppercase tracking-[0.12em] text-academic-ink">Rank students by subject performance</p><p className="mt-2 italic text-academic-ink-soft">(select form, stream, term exam and year to View and Print report)</p></div></div> : (
           <PrintableReport title="Ranked Subject Performance">
             <ReportScope grade={grade} stream={stream} term={term} year={year} exam={examLabel} />
@@ -528,13 +617,14 @@ function RankStudentsBySubjectScreen({ route }: { route: string }) {
 }
 
 function SubjectsGradeCountScreen({ route }: { route: string }) {
-  const { students, marks, grades, streams, examOptions, years, subjects, subjectPathways, filters, setFilter } = useCbeReports();
+  const { students, marks, grades, examOptions, years, subjects, subjectPathways, filters, setFilter, setFilters, ready } = useCbeReports();
   const routeFilters = (filters[route] ?? {}) as Record<string, string | number | boolean>;
   const [enabled, setEnabled] = useState(true);
   const [generated, setGenerated] = useState(false);
 
   const grade = getSelectedOption(routeFilters.grade, grades, "Grade 10");
-  const stream = getSelectedOption(routeFilters.stream, streams, "OXFORD");
+  const availableStreams = getCbeReportStreams(students, grade);
+  const stream = getSelectedOption(routeFilters.stream, availableStreams, "");
   const term = getSelectedOption(routeFilters.term, TERMS, "Term 3");
   const year = getSelectedYear(routeFilters.year, years);
   const availableExams = getAvailableExams(examOptions, grade, term, year);
@@ -542,7 +632,7 @@ function SubjectsGradeCountScreen({ route }: { route: string }) {
   const selectedExam = availableExams.find((option) => option.id === examId);
   const exam = selectedExam?.title ?? "";
   const examLabel = selectedExam ? getExamOptionLabel(selectedExam, availableExams) : "";
-  const requiredFilled = grades.includes(grade) && streams.includes(stream) && TERMS.includes(term) && Boolean(selectedExam);
+  const requiredFilled = grades.includes(grade) && availableStreams.includes(stream) && TERMS.includes(term) && Boolean(selectedExam);
   const scopedRows = getCbeReportRows(students, marks, { grade, stream, year, term, examId, exam });
   const subjectCounts = subjects.map((subject) => {
     const allowedPathways = subjectPathways[subject] ?? [];
@@ -563,12 +653,24 @@ function SubjectsGradeCountScreen({ route }: { route: string }) {
     entered: total.entered + row.entered,
     unmarkedRoster: total.unmarkedRoster + row.unmarkedRoster,
   }), { EE: 0, ME: 0, AE: 0, BE: 0, entered: 0, unmarkedRoster: 0 });
+  const handleResetFilters = () => setFilters((current) => ({ ...current, [route]: {} }));
+
+  useEffect(() => {
+    if (!availableExams.length) {
+      if (examId) setFilter(route, "exam", "");
+      return;
+    }
+
+    if (examId && !availableExams.some((option) => option.id === examId)) {
+      setFilter(route, "exam", availableExams[0].id);
+    }
+  }, [availableExams, examId, route, setFilter]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
       <FilterCard title="SUBJECTS GRADE COUNT ANALYSIS" enabled={enabled} onToggle={setEnabled}>
         <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Grade</label><select value={grade} disabled={!enabled} onChange={(event) => setFilter(route, "grade", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink">{grades.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
-        <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Stream</label><select value={stream} disabled={!enabled} onChange={(event) => setFilter(route, "stream", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink">{streams.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
+        <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Stream</label><select value={stream} disabled={!enabled || !availableStreams.length} onChange={(event) => setFilter(route, "stream", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink">{availableStreams.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
         <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Term</label><select value={term} disabled={!enabled} onChange={(event) => setFilter(route, "term", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink">{TERMS.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
         <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Year</label><select value={year} disabled={!enabled} onChange={(event) => setFilter(route, "year", Number(event.target.value))} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink">{years.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
         <div className="space-y-1"><label className="text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Exam</label><select value={examId} disabled={!enabled || !availableExams.length} onChange={(event) => setFilter(route, "exam", event.target.value)} className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink"><option value="">{availableExams.length ? "Select exam" : "No exams for this grade, term and year"}</option>{availableExams.map((option) => <option key={option.id} value={option.id}>{getExamOptionLabel(option, availableExams)}</option>)}</select></div>
@@ -576,6 +678,7 @@ function SubjectsGradeCountScreen({ route }: { route: string }) {
       </FilterCard>
 
       <div className="min-w-0 rounded-2xl border border-academic-line bg-[#f8f7f3] p-4 shadow-sm">
+        {ready && <ReportSummaryBar details={[{ label: "Grade", value: grade }, { label: "Stream", value: stream }, { label: "Term", value: term }, { label: "Year", value: year }, { label: "Exam", value: examLabel || "Not selected" }]} onReset={handleResetFilters} />}
         {!generated ? <div className="flex min-h-[180px] items-center justify-center border-b border-academic-line text-center text-sm font-semibold uppercase tracking-[0.14em] text-academic-ink">View Subjects Rubric Count Analysis</div> : (
           <PrintableReport title="Subject Rubric Count Analysis">
             <ReportScope grade={grade} stream={stream} term={term} year={year} exam={examLabel} />

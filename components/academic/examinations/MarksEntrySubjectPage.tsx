@@ -5,6 +5,7 @@ import { useRegistrationData } from "@/components/academic/registration/Registra
 import { ToolSwitch } from "@/components/academic/examinations/ToolSwitch";
 import { useExaminationsData } from "@/components/academic/examinations/ExaminationsProvider";
 import type { Student } from "@/lib/academic/registration-data";
+import { upsertAssessmentMarks } from "@/lib/academic/examinations-data";
 
 type StudentLike = Pick<Student, "id" | "name" | "streamId"> & { admNo: string };
 
@@ -64,9 +65,10 @@ export function MarksEntrySubjectPage() {
     [streamId],
   );
 
+  const selectedExamId = examOptions.some((exam) => exam.value === examId) ? examId : "";
   const currentExam = useMemo(
-    () => data.exams.find((exam) => exam.id === examId),
-    [data.exams, examId],
+    () => data.exams.find((exam) => exam.id === selectedExamId),
+    [data.exams, selectedExamId],
   );
 
   const streamStudents = useMemo<StudentLike[]>(() => {
@@ -102,9 +104,20 @@ export function MarksEntrySubjectPage() {
   };
 
   const saveMarks = () => {
+    if (!currentExam) return;
+    const subject = subjectOptions.find((option) => option.value === subjectRef)?.label ?? subjectRef;
+    const incomingMarks = rows.map((row) => ({
+      examId: currentExam.id,
+      studentId: row.id,
+      admNo: row.adm,
+      subjectRef,
+      subject,
+      score: Number(row.mark) || 0,
+      outOf: currentExam.outOf || 100,
+    }));
     setData((current) => ({
       ...current,
-      exams: current.exams.map((exam) => (exam.id === examId ? { ...exam } : exam)),
+      assessmentMarks: upsertAssessmentMarks(current.assessmentMarks, incomingMarks),
     }));
   };
 
@@ -158,7 +171,7 @@ export function MarksEntrySubjectPage() {
           <label className="block xl:col-span-2">
             <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.08em] text-academic-ink-soft">Exam</span>
             <select
-              value={examId}
+              value={selectedExamId}
               disabled={!toolEnabled}
               onChange={(event) => setExamId(event.target.value)}
               className="w-full rounded-md border border-academic-line bg-white px-3 py-2 text-sm text-academic-ink"
@@ -282,7 +295,7 @@ export function MarksEntrySubjectPage() {
           <button
             type="button"
             onClick={saveMarks}
-            disabled={!toolEnabled || rows.length === 0}
+            disabled={!toolEnabled || rows.length === 0 || !currentExam}
             className="rounded-md bg-academic-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-academic-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Save marks
